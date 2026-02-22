@@ -2,100 +2,82 @@
 
 ## Overview
 
-This module provides real-time motion similarity detection for a Tai Chi AR training system. It compares motion between a **Shifu** (instructor) and **Apprentice** (learner) using wearable sensors.
+Real-time motion similarity detection for a Tai Chi AR training system. Compares motion between a **Shifu** (instructor) and **Apprentice** (learner) using wearable IMU + flex sensors.
 
 **Project:** CG4002 Computer Engineering Capstone
-**Status:** MVP/POC for midterm demo
+**Target:** Ultra96-V2 (Zynq UltraScale+ ZU3EG)
 
 ---
 
-## System Architecture
+## End-to-End Pipeline
 
 ```
-Shifu Sensors ────┐
-                  ├──> Buffer ──> Sliding Window ──> Model ──> Feedback ──> AR Visualizer
-Apprentice Sensors┘
+STEP 1          STEP 2            STEP 3           STEP 4          STEP 5
+Train Model --> Export Weights --> HLS C Sim  ----> Vivado Build --> Deploy to FPGA
+  (sw/)         (fpga/)            (fpga/)          (fpga/)         (fpga/deploy/)
 ```
 
-### Input (Per Limb)
-- 1 IMU sensor (accelerometer + gyroscope)
-- 1 Flex sensor
-
-### Data Format
-Each sensor reading is a **7-element array**:
-```
-[ax, ay, az, gx, gy, gz, flex]
-```
-
-| Index | Field | Description | Unit |
-|-------|-------|-------------|------|
-| 0 | ax | Accelerometer X | g |
-| 1 | ay | Accelerometer Y | g |
-| 2 | az | Accelerometer Z | g |
-| 3 | gx | Gyroscope X | deg/s |
-| 4 | gy | Gyroscope Y | deg/s |
-| 5 | gz | Gyroscope Z | deg/s |
-| 6 | flex | Flex sensor | degrees |
-
-### Sampling
-- **Rate:** 150 Hz
-- **Window:** 3 seconds (450 samples)
-- **Minimum for prediction:** 1 second (150 samples)
+If you retrain or change the model, re-run from Step 2 onwards.
 
 ---
 
-## Output
-
-### ML Output (Neural Network)
-| Field | Type | Description |
-|-------|------|-------------|
-| `similarity_score` | float [0, 1] | How similar the movements are |
-
-### Hardcoded Output (Cross-Correlation)
-| Field | Type | Description |
-|-------|------|-------------|
-| `phase_offset_ms` | float | Temporal offset in milliseconds |
-
-### Feedback (Derived)
-| Field | Values | Description |
-|-------|--------|-------------|
-| `feedback.sync` | excellent / good / needs_improvement / out_of_sync | Based on similarity_score |
-| `feedback.timing` | on_time / lagging / rushing | Based on phase_offset_ms |
-| `ar_color` | green / yellow / red | For AR visualization |
-
-### Thresholds
-```
-similarity >= 0.8  →  excellent (green)
-similarity >= 0.6  →  good (green)
-similarity >= 0.4  →  needs_improvement (yellow)
-similarity <  0.4  →  out_of_sync (red)
-
-|phase_offset| < 100ms  →  on_time
-phase_offset < 0        →  lagging (apprentice behind)
-phase_offset > 0        →  rushing (apprentice ahead)
-```
-
----
-
-## File Structure
+## Project Structure
 
 ```
 prototype/
-├── model.py              # Siamese LSTM neural network
-├── dataset.py            # Data loading utilities
-├── train.py              # Training script
-├── evaluate.py           # Compare ML vs hardcoded baselines
-├── inference.py          # Batch inference on test data
-├── metrics.py            # Phase offset calculation
-├── online_serving.py     # Real-time prediction server
-├── simulate_online.py    # Interactive simulation demo
-├── visualize.py          # Generate visualization plots
-├── generate_synthetic.py # Create synthetic test data
-├── trained_model.pth     # Trained model checkpoint
-└── data/
-    ├── train/pairs.npz   # Training data
-    ├── val/pairs.npz     # Validation data
-    └── test/pairs.npz    # Test data
+├── README.md
+├── trained_model.pth              # Trained model checkpoint
+│
+├── sw/                            # STEP 1: Software (PyTorch)
+│   ├── model.py                   #   Siamese LSTM architecture
+│   ├── dataset.py                 #   Data loading utilities
+│   ├── train.py                   #   Training script
+│   ├── evaluate.py                #   Evaluation vs baselines
+│   ├── inference.py               #   Batch inference
+│   ├── metrics.py                 #   Phase offset calculation
+│   ├── online_serving.py          #   Real-time predictor
+│   ├── simulate_online.py         #   Simulation demo
+│   ├── visualize.py               #   Visualization generation
+│   └── generate_synthetic.py      #   Synthetic data generator
+│
+├── data/                          #   Training/test data
+│   ├── train/pairs.npz
+│   ├── val/pairs.npz
+│   └── test/pairs.npz
+│
+├── visualizations/                #   Generated plots
+│
+├── fpga/                          # STEPS 2-5: FPGA Pipeline
+│   ├── export_weights.py          #   STEP 2: PyTorch -> C headers
+│   ├── generate_test_vectors.py   #   STEP 2: PyTorch -> test vectors
+│   ├── verify_hls_logic.py        #   STEP 2: NumPy verification
+│   │
+│   ├── hls/                       #   STEP 3: HLS C++ source
+│   │   ├── siamese_lstm.h
+│   │   ├── siamese_lstm.cpp
+│   │   ├── siamese_lstm_tb.cpp
+│   │   └── test_vectors/          #   Generated test data
+│   │
+│   ├── hls_weights/               #   Generated C weight headers
+│   │   ├── model_params.h
+│   │   ├── weights_lstm.h
+│   │   ├── weights_projection.h
+│   │   └── weights_similarity.h
+│   │
+│   ├── run_csim.tcl               #   STEP 3: Vitis HLS C simulation
+│   ├── build_bitstream.tcl        #   STEP 4: Vivado bitstream build
+│   │
+│   └── deploy/                    #   STEP 5: FPGA deployment
+│       ├── siamese_lstm.bit       #   Bitstream
+│       ├── siamese_lstm.hwh       #   Hardware handoff
+│       ├── test_siamese_lstm.py   #   On-board test script
+│       └── upload_to_board.py     #   Upload script
+│
+└── (gitignored)
+    siamese_lstm_hls/              # Vitis HLS project (generated)
+    siamese_lstm_hls2/             # Vitis HLS project (generated)
+    siamese_lstm_vivado/           # Vivado project (generated)
+    siamese_lstm_vivado2/          # Vivado project (generated)
 ```
 
 ---
@@ -112,41 +94,14 @@ Apprentice Seq [450, 7] ──> LSTM ──> Embedding [16]──┘
                                          |diff| [16]
 ```
 
-### Model Parameters
-```python
-input_dim = 7        # Sensor features
-hidden_dim = 32      # LSTM hidden size
-embedding_dim = 16   # Output embedding size
-dropout = 0.2
-```
-
-### Why Siamese LSTM?
-- Handles variable-length sequences
-- Learns temporal patterns
-- Symmetric comparison (order doesn't matter)
-- Small model suitable for edge deployment
-
----
-
-## Data Format
-
-### NPZ File Structure
-```python
-# data/{split}/pairs.npz
-{
-    'control_seqs': np.ndarray,  # Shape: [N, 450, 7] - Shifu sequences
-    'test_seqs': np.ndarray,     # Shape: [N, 450, 7] - Apprentice sequences
-    'labels': np.ndarray         # Shape: [N] - Similarity labels [0, 1]
-}
-```
-
-### Label Convention
-```
-1.0 = Identical/very similar movement
-0.8 = Similar with minor differences
-0.4 = Different speed/timing
-0.0 = Completely different movement
-```
+| Parameter | Value |
+|-----------|-------|
+| input_dim | 7 (ax, ay, az, gx, gy, gz, flex) |
+| hidden_dim | 32 |
+| embedding_dim | 16 |
+| dropout | 0.2 |
+| sampling_rate | 150 Hz |
+| window | 450 samples (3 sec) |
 
 ---
 
@@ -157,170 +112,105 @@ dropout = 0.2
 pip install torch numpy scipy matplotlib
 ```
 
-### Step 1: Generate Synthetic Data (for testing pipeline)
+### Step 1: Train the Model (sw/)
+
 ```bash
-python generate_synthetic.py --output data --n-train 200 --n-val 50 --n-test 50
+# Generate synthetic data (if no real data)
+python sw/generate_synthetic.py --output data --n-train 200 --n-val 50 --n-test 50
+
+# Train
+python sw/train.py --data-dir data --epochs 100 --batch-size 16
+# Output: trained_model.pth
+
+# Evaluate
+python sw/evaluate.py --checkpoint trained_model.pth --data-dir data
+
+# Visualize
+python sw/visualize.py --checkpoint trained_model.pth --data-dir data
 ```
 
-### Step 2: Train the Model
-```bash
-python train.py --data-dir data --epochs 100 --batch-size 16
-```
-Output: `trained_model.pth`
+### Step 2: Export Weights for HLS (fpga/)
 
-### Step 3: Evaluate Model
 ```bash
-python evaluate.py --checkpoint trained_model.pth --data-dir data
-```
-Compares ML model against hardcoded baselines (DTW, cosine similarity, etc.)
+# Export model weights to C headers
+python fpga/export_weights.py --checkpoint trained_model.pth --output-dir fpga/hls_weights
 
-### Step 4: Run Inference
-```bash
-python inference.py --checkpoint trained_model.pth --data-dir data
+# Generate test vectors for C simulation
+python fpga/generate_test_vectors.py --checkpoint trained_model.pth --output-dir fpga/hls/test_vectors
+
+# Verify HLS logic matches PyTorch
+python fpga/verify_hls_logic.py
 ```
 
-### Step 5: Generate Visualizations
-```bash
-python visualize.py --checkpoint trained_model.pth --data-dir data
-```
-Output: `visualizations/` folder with plots
+### Step 3: HLS C Simulation (fpga/)
 
-### Step 6: Run Real-time Simulation
 ```bash
-# Test different scenarios
-python simulate_online.py --scenario similar --duration 30
-python simulate_online.py --scenario delayed --duration 30
-python simulate_online.py --scenario different --duration 30
-python simulate_online.py --scenario mixed --duration 60
+cd fpga
+vitis_hls -f run_csim.tcl
 ```
 
-| Scenario | Description | Expected Result |
-|----------|-------------|-----------------|
-| similar | Apprentice follows closely | Green, on_time |
-| delayed | Apprentice 200ms behind | Green, lagging |
-| different | Wrong movement | Red |
-| fast | 1.5x speed | Yellow/Red |
-| slow | 0.6x speed | Yellow/Red |
-| mixed | Cycles through all | Varies |
+### Step 4: Build Bitstream (fpga/)
 
-Press `Ctrl+C` to stop.
+In Vivado Tcl Console:
+```tcl
+source C:/Users/lsy/Downloads/Projects/Capstone/prototype/fpga/build_bitstream.tcl
+```
+
+### Step 5: Deploy to FPGA (fpga/deploy/)
+
+```bash
+python fpga/deploy/upload_to_board.py
+```
+
+Then SSH to the board and run:
+```bash
+ssh xilinx@makerslab-fpga-43.ddns.comp.nus.edu.sg
+python3 test_siamese_lstm.py
+```
+
+---
+
+## Output Format
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `similarity_score` | float [0, 1] | How similar the movements are |
+| `phase_offset_ms` | float | Temporal offset in milliseconds |
+| `feedback.sync` | string | excellent / good / needs_improvement / out_of_sync |
+| `ar_color` | string | green / yellow / red |
+
+### Thresholds
+```
+similarity >= 0.8  ->  excellent (green)
+similarity >= 0.6  ->  good (green)
+similarity >= 0.4  ->  needs_improvement (yellow)
+similarity <  0.4  ->  out_of_sync (red)
+```
 
 ---
 
 ## Online Serving API
 
-### Usage
 ```python
-from online_serving import OnlinePredictor
+from sw.online_serving import OnlinePredictor
 
-# Initialize
 predictor = OnlinePredictor(
     checkpoint_path='trained_model.pth',
-    window_size=450,      # 3 seconds at 150Hz
-    min_samples=150       # 1 second minimum
+    window_size=450,
+    min_samples=150
 )
 
-# Feed sensor data (call at 150Hz)
-predictor.add_shifu_reading(shifu_data)        # np.ndarray [7]
-predictor.add_apprentice_reading(apprentice_data)  # np.ndarray [7]
+# Feed sensor data at 150Hz
+predictor.add_shifu_reading(shifu_data)
+predictor.add_apprentice_reading(apprentice_data)
 
-# Get prediction (call at 10Hz)
+# Get prediction at 10Hz
 result = predictor.predict()
-if result:
-    print(result['similarity_score'])   # 0.0 - 1.0
-    print(result['phase_offset_ms'])    # milliseconds
-    print(result['feedback']['sync'])   # excellent/good/needs_improvement/out_of_sync
-    print(result['ar_color'])           # green/yellow/red
 ```
 
-### With Callback Server
-```python
-from online_serving import OnlinePredictor, RealtimeServer
-
-predictor = OnlinePredictor('trained_model.pth')
-
-def on_result(result):
-    # Send to AR visualizer
-    send_to_ar(result['ar_color'], result['similarity_score'])
-
-server = RealtimeServer(
-    predictor=predictor,
-    prediction_interval_ms=100,  # 10Hz predictions
-    callback=on_result
-)
-server.start()
-
-# ... feed sensor data ...
-
-server.stop()
-```
-
----
-
-## Phase Offset Calculation
-
-The timing/phase offset uses **cross-correlation** on gyroscope X signal:
-
-1. Extract `gx` from both Shifu and Apprentice
-2. Normalize signals (zero mean, unit variance)
-3. Compute cross-correlation
-4. Find lag at maximum correlation
-5. Convert to milliseconds
-
-```python
-from metrics import compute_phase_offset
-
-offset_ms = compute_phase_offset(shifu_seq, apprentice_seq, sampling_hz=150.0)
-# Negative = apprentice lagging (behind)
-# Positive = apprentice rushing (ahead)
-```
-
----
-
-## Hardcoded Baselines (for comparison)
-
-| Method | Description | Performance |
-|--------|-------------|-------------|
-| angle_diff | Direct angle difference | Poor |
-| cross_correlation | Signal correlation | Moderate |
-| dtw | Dynamic Time Warping | Good |
-| cosine_features | Cosine similarity on features | Moderate |
-| **ML (Siamese LSTM)** | Learned similarity | **Best** |
-
-ML shows ~95% improvement over best baseline (DTW) on synthetic data.
-
----
-
-## Next Steps
-
-1. **Collect Real Data** - Replace synthetic data with actual sensor recordings
-2. **Multi-limb Support** - Extend to multiple IMU + flex sensors
-3. **Model Optimization** - Quantization for edge deployment
-4. **Integration** - Connect to MQTT/WebSocket for real sensor streams
-
----
-
-## Troubleshooting
-
-### Model not loading
+### Real-time Simulation
 ```bash
-# Check if trained_model.pth exists
-ls trained_model.pth
-
-# Retrain if missing
-python train.py --data-dir data --epochs 100
+python sw/simulate_online.py --scenario similar --duration 30
+python sw/simulate_online.py --scenario delayed --duration 30
+python sw/simulate_online.py --scenario mixed --duration 60
 ```
-
-### No prediction output
-- Ensure at least 150 samples (1 second) in both buffers
-- Check `predictor.is_ready()` returns True
-
-### Simulation crashes
-- Press Ctrl+C to gracefully stop
-- Check ANSI terminal support on Windows
-
----
-
-## Contact
-
-For questions about the AI module, refer to this document or check the code comments.

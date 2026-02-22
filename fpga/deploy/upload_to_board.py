@@ -8,9 +8,9 @@ PASS = "xilinx"
 REMOTE_DIR = "/home/xilinx/"
 
 FILES = [
-    "pynq_overlay/siamese_lstm.bit",
-    "pynq_overlay/siamese_lstm.hwh",
-    "pynq_overlay/test_siamese_lstm.py",
+    "siamese_lstm.bit",
+    "siamese_lstm.hwh",
+    "test_siamese_lstm.py",
 ]
 
 base = os.path.dirname(os.path.abspath(__file__))

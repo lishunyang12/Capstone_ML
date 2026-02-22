@@ -4,14 +4,19 @@ Generate test vectors from PyTorch model for HLS C simulation verification.
 Creates test cases with inputs and expected outputs as text files that
 the C testbench can read for bit-accurate verification.
 
-Usage:
-    python generate_test_vectors.py --checkpoint trained_model.pth --output-dir hls/test_vectors
+Usage (from project root):
+    python fpga/generate_test_vectors.py --checkpoint trained_model.pth --output-dir fpga/hls/test_vectors
 """
 
+import sys
+import os
 import torch
 import numpy as np
 import argparse
 from pathlib import Path
+
+# Add sw/ directory to import path (model.py lives there)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'sw'))
 from model import SiameseLSTM
 
 

@@ -8,8 +8,8 @@ Produces:
         weights_similarity.h - Similarity head (2 FC layers)
         model_params.h       - Dimensions and constants
 
-Usage:
-    python export_weights.py --checkpoint trained_model.pth --output-dir hls_weights
+Usage (from project root):
+    python fpga/export_weights.py --checkpoint trained_model.pth --output-dir fpga/hls_weights
 """
 
 import torch

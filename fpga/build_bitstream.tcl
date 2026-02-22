@@ -3,7 +3,7 @@
 # Uses a SINGLE SmartConnect with 3 slave ports (avoids black-box OOC failures)
 #
 # Usage: In Vivado Tcl Console:
-#   source C:/Users/lsy/Downloads/Projects/Capstone/prototype/build_bitstream.tcl
+#   source C:/Users/lsy/Downloads/Projects/Capstone/prototype/fpga/build_bitstream.tcl
 
 # Use short base path to avoid Windows path length issues
 set base_dir     "C:/hlsprj"
@@ -104,16 +104,16 @@ wait_on_run impl_1
 puts ""
 puts "Implementation status: [get_property STATUS [get_runs impl_1]]"
 
-# Step 18: Copy files for PYNQ
-file mkdir $src_dir/pynq_overlay
+# Step 18: Copy files for deployment
+file mkdir $src_dir/fpga/deploy
 if {[file exists $base_dir/$project_name/$project_name.runs/impl_1/design_1_wrapper.bit]} {
-    file copy -force $base_dir/$project_name/$project_name.runs/impl_1/design_1_wrapper.bit $src_dir/pynq_overlay/siamese_lstm.bit
-    file copy -force $base_dir/$project_name/$project_name.gen/sources_1/bd/design_1/hw_handoff/design_1.hwh $src_dir/pynq_overlay/siamese_lstm.hwh
+    file copy -force $base_dir/$project_name/$project_name.runs/impl_1/design_1_wrapper.bit $src_dir/fpga/deploy/siamese_lstm.bit
+    file copy -force $base_dir/$project_name/$project_name.gen/sources_1/bd/design_1/hw_handoff/design_1.hwh $src_dir/fpga/deploy/siamese_lstm.hwh
     puts ""
     puts "============================================================"
     puts "SUCCESS! Output files for PYNQ:"
-    puts "  $src_dir/pynq_overlay/siamese_lstm.bit"
-    puts "  $src_dir/pynq_overlay/siamese_lstm.hwh"
+    puts "  $src_dir/fpga/deploy/siamese_lstm.bit"
+    puts "  $src_dir/fpga/deploy/siamese_lstm.hwh"
     puts "============================================================"
 } else {
     puts "ERROR: Bitstream not found. Check implementation logs."

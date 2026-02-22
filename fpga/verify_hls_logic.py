@@ -5,10 +5,11 @@ This reads the exported weight headers directly and the test vectors,
 then runs the exact same computation as siamese_lstm.cpp to verify
 correctness before deploying to Vitis HLS.
 
-Usage:
+Usage (from fpga/ directory):
     python verify_hls_logic.py
 """
 
+import os
 import numpy as np
 import re
 from pathlib import Path
@@ -147,7 +148,7 @@ def read_embedding(path):
 
 
 def main():
-    base = Path(".")
+    base = Path(os.path.dirname(os.path.abspath(__file__)))
     weights_dir = base / "hls_weights"
     test_dir = base / "hls" / "test_vectors"
 

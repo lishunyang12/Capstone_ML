@@ -2,7 +2,7 @@
 #
 # Target: Ultra96-V2 (Zynq UltraScale+ ZU3EG, xczu3eg-sbva484-1-e)
 #
-# Usage:
+# Usage (from fpga/ directory):
 #   vitis_hls -f run_csim.tcl
 #
 # Or step by step in Vitis HLS GUI:
