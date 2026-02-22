@@ -1,0 +1,20 @@
+# Vitis HLS generated project directories (large, regenerable from source)
+siamese_lstm_hls/
+siamese_lstm_hls2/
+
+# Vivado generated project directories (large, regenerable from build_bitstream.tcl)
+siamese_lstm_vivado/
+siamese_lstm_vivado2/
+
+# Vitis HLS log
+vitis_hls.log
+
+# Windows artifacts
+nul
+
+# Python
+__pycache__/
+*.pyc
+
+# Claude Code local settings
+.claude/
